@@ -76,19 +76,6 @@ class event:
     def __str__(self):
         return self.label + ' ' + self.dt.strftime('%Y-%m-%d %H:%M') + \
             ' (' + str(self.moon_frac) + ')'
-
-class vsched_ap_action(argparse.Action):
-    """Custom argparse action class to handle mutually exclusive options."""
-    def __init__(self, option_strings, dest, nargs=0, **kwargs):
-        super().__init__(option_strings, dest, nargs=nargs, **kwargs)
-    def __call__(self, parser, namespace, values, option_string=None):
-        if option_string == '--dark-run' or option_string == '-d':
-            namespace.dark_run = True
-            namespace.bright_run = False
-        if option_string == '--bright-run' or option_string == '-b':
-            namespace.bright_run = True
-            namespace.dark_run = False
-
 class vephem:
     def __init__(self, string):
         self.sunset = None
@@ -231,6 +218,13 @@ class vephem:
             self.end_night = self.sunrise
 
         self.night_duration = self.end_night.dt - self.start_night.dt
+
+        # if night_duration is < minimum_interval, it is a bright run night
+        # so redefine night_duration to be sunset to sunrise
+        if self.night_duration < minimum_interval:
+            self.start_night = self.sunset
+            self.end_night = self.sunrise
+
         return
 
     def print_night(self, print_moon_event = True):
@@ -392,6 +386,7 @@ class vephem:
 
     def print_ical_event(self, season, night_type, run_number,
                          run_night_number):
+        """Generate output suitable for use in Google Calendar."""
         print('BEGIN:VEVENT\r')
         print('DTSTAMP:{0}\r'.format(datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')))
         print('SUMMARY:{0}{1}-{2}\r'.format(night_type, run_number,
@@ -420,8 +415,18 @@ class vephem:
 
         print('END:VEVENT\r')
 
+    def print_wiki_event(self, run_number, run_night_number):
+        print('<TR>')
+        print(f'  <TD>{run_number}</TD>')
+        print(f'  <TD>{run_night_number}</TD>')
+        print('  <TD>{0}</TD>'.format(self.sunset.dt.strftime('%Y-%b-%d')))
+        print('  <TD>{0}</TD>'.format(self.start_night.dt.strftime('%Y-%b-%d %H:%M')))
+        print('  <TD>{0}</TD>'.format(self.end_night.dt.strftime('%Y-%b-%d %H:%M')))
+        print('</TR>')
+
     def print_schedule(self, night_type, run_night, run_night_number,
                        delim=','):
+        """Generate CSV output suitable for importing into Google Sheets."""
         sunset_ut = self.sunset.dt.astimezone(ZoneInfo('UTC'))
         print('', end=delim) # DR label
         # 'UTC Date'
@@ -479,19 +484,26 @@ class vephem:
         print('')
 
 
-parser = argparse.ArgumentParser(description='Generate sun and moon rise/set times using same software as VERITAS loggen ephemeris.', epilog='Date format of start_date and stop_date is \'YYYY-MM-DD\' in UT time zone.')
+parser = argparse.ArgumentParser(description='Generate VERITAS run schedule from data provided by an external ephemeris program that provides sunrise, sunset, moonrise, and moonset times.', epilog='Date format of start_date and stop_date is \'YYYY-MM-DD\' in UT time zone. If neither --dark-run or --bright-run are specified, both are printed out. If --night-program is not provided, the default is \'vnight\'.')
 parser.add_argument('start_date', help='First night in range of nights to generate ephmeris. Use UT date; times are printed in local.')
 parser.add_argument('stop_date', help='Last night in range of nights to generate ephmeris. Use UT date; times are printed in local')
 parser.add_argument('--night-program','-n', default='vnight',
-                    help='Executable that outputs night event times.')
+                    help='Executable that outputs night event times. Default is \'vnight\' and needs to be in your path.')
 parser.add_argument('-v', '--verbose', action='count', default=0,
                     help='Use mutliple times for more verbose output.')
-parser.add_argument('--bright-run','-b', action=vsched_ap_action, 
-                    default=True, help='Print only bright run schedule.')
-parser.add_argument('--dark-run','-d', action=vsched_ap_action, 
-                    default=True, help='Print only dark run schedule.')
-parser.add_argument('--ical', help='Generate iCal output.', default=False,
-                    action='store_true')
+parser.add_argument('--bright-run','-b', dest='run_mode_type',
+                    action='store_const', const='bright_run',
+                    help='Print only bright run schedule.')
+parser.add_argument('--dark-run','-d', dest='run_mode_type',
+                    action='store_const', const='dark_run',
+                    help='Print only dark run schedule.')
+parser.add_argument('--output', '-o', help='File to write output')
+parser.add_argument('--ical',
+                    help='Generate iCal output suitable for use with Google Calendar.',
+                    dest='output_type',
+                    action='store_const', const='ical')
+parser.add_argument('--wiki', help='Generate HTML wiki table output',
+                    dest='output_type', action='store_const', const='wiki')
 args = parser.parse_args()
 
 rstart_date = re.fullmatch('(\d{4})-(\d{2})-(\d{2})', args.start_date, re.A)
@@ -522,10 +534,26 @@ bright_run_night_number = 0
 darkRun = False
 brightRun = False
 
-if args.ical:
-    print('BEGIN:VCALENDAR\r')
+if args.output is not None:
+    stdout_fileno = sys.stdout
+    sys.stdout = open(args.output, 'w')
+
+if args.output_type == 'ical':
+    print('BEGIN:VCALENDAR\r', file=args.output)
     print('VERSION:2.0\r')
     print('PRODID:-//VERITAS/Observing Calendar 2.0//EN\r')
+elif args.output_type == 'wiki':
+    print('<HTML>')
+    print('<HEAD><TITLE>VERITAS Observation Times</TITLE></HEAD>')
+    print('<BODY>')
+    print('<TABLE border="1">')
+    print('<TR>')
+    print('  <TH>DR</TH>')
+    print('  <TH>Day of DR</TH>')
+    print('  <TH>Night Beginning</TH>')
+    print('  <TH>Obs Begin</TH>')
+    print('  <TH>Obs End</TH>')
+    print('</TR>')
 
 scheduler = args.night_program
 dcounter = dtstart_date
@@ -553,7 +581,7 @@ while dcounter <= dtstop_date:
         print('vephem obj')
         print(v)
 
-    if args.dark_run == True:
+    if args.run_mode_type is None or args.run_mode_type == 'dark_run':
         if v.dark_duration >= minimum_interval:
             darkRun = True;
             if dark_run_number == 0:
@@ -561,9 +589,11 @@ while dcounter <= dtstop_date:
                 dark_run_night_number = 1
             else:
                 dark_run_night_number += 1
-            if args.ical:
+            if args.output_type == 'ical':
                 v.print_ical_event(season_tag, 'DR', dark_run_number,
                                    dark_run_night_number)
+            elif args.output_type == 'wiki':
+                v.print_wiki_event(dark_run_number, dark_run_night_number)
             else:
                 v.print_schedule('DR', dark_run_number, dark_run_night_number)
         else:
@@ -572,7 +602,7 @@ while dcounter <= dtstop_date:
                 dark_run_night_number = 0
                 darkRun = False
 
-    if args.bright_run == True:
+    if args.run_mode_type is None or args.run_mode_type == 'bright_run':
         if v.dark_duration < minimum_interval:
             brightRun = True;
             if bright_run_number == 0:
@@ -580,9 +610,11 @@ while dcounter <= dtstop_date:
                 bright_run_night_number = 1
             else:
                 bright_run_night_number += 1
-            if args.ical:
+            if args.output_type == 'ical':
                 v.print_ical_event(season_tag, 'BR', bright_run_number,
                                    bright_run_night_number)
+            elif args.output_type == 'wiki':
+                v.print_wiki_event(bright_run_number, bright_run_night_number)
             else:
                 v.print_schedule('BR', bright_run_number,
                                  bright_run_night_number)
@@ -596,6 +628,12 @@ while dcounter <= dtstop_date:
     # advance the date by one day.
     dcounter = dcounter + timedelta(days=1)
 
-if args.ical:
+if args.output_type == 'ical':
     print('END:VCALENDAR\r')
+elif args.output_type == 'wiki':
+    print('</TABLE>')
+    print('</BODY>')
+    print('</HTML>')
 
+sys.stdout.close()
+sys.stdout = stdout_fileno
