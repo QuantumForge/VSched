@@ -390,6 +390,36 @@ class vephem:
         else:
             self.night_type = 'BR'
 
+    def print_ical_event(self, season, night_type, run_number,
+                         run_night_number):
+        print('BEGIN:VEVENT\r')
+        print('DTSTAMP:{0}\r'.format(datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')))
+        print('SUMMARY:{0}{1}-{2}\r'.format(night_type, run_number,
+                                            run_night_number))
+        print('UID:{0}-{1}{2}-{3}@veritas.sao.arizona.edu\r'.format(season,
+                                    night_type, run_number, run_night_number))
+        print('STATUS:CONFIRMED\r')
+        print('TRANSP:TRANSPARENT\r')
+        print('DTSTART:{0}\r'.format(self.sunset.dt.strftime('%Y%m%d')))
+        print('DTEND:{0}\r'.format(self.sunset.dt.strftime('%Y%m%d')))
+        print('CATEGORIES:VERITAS,OBSERVING\r')
+        print('LOCATION:FLWO\r')
+        print('GEO:31.675;-110.952222\r')
+        print('DESCRIPTION:', end='')
+        print('UT date: {0}\\n\r'.format(self.sunset.dt.astimezone(ZoneInfo('UTC')).strftime('%Y-%b-%d')))
+        print(' following times are MST\\n\r')
+        print(' Sunset: {0}\\n\r'.format(self.sunset.dt.strftime('%Y-%b-%d %H:%M')))
+        print(' Sunrise: {0}\\n\r'.format(self.sunrise.dt.strftime('%Y-%b-%d %H:%M')))
+        if self.start_dark is not None and self.end_dark is not None:
+            print(' Start of dark: {0}\\n\r'.format(self.start_dark.dt.strftime('%Y-%b-%d %H:%M')))
+            print(' End of dark: {0}\\n\r'.format(self.end_dark.dt.strftime('%Y-%b-%d %H:%M')))
+        if self.moon_or_rhv is not None:
+            print(' Moontime check currents max. 15 uA\\n\r')
+            print(' Start of moon ({0:5.2f}%): {1}\\n\r'.format(self.start_moon.moon_frac*100, self.start_moon.dt.strftime('%Y-%b-%d %H:%M')))
+            print(' End of moon ({0:5.2f}%): {1}\\n\r'.format(self.end_moon.moon_frac*100, self.end_moon.dt.strftime('%Y-%b-%d %H:%M')))
+
+        print('END:VEVENT\r')
+
     def print_schedule(self, night_type, run_night, run_night_number,
                        delim=','):
         sunset_ut = self.sunset.dt.astimezone(ZoneInfo('UTC'))
@@ -460,6 +490,8 @@ parser.add_argument('--bright-run','-b', action=vsched_ap_action,
                     default=True, help='Print only bright run schedule.')
 parser.add_argument('--dark-run','-d', action=vsched_ap_action, 
                     default=True, help='Print only dark run schedule.')
+parser.add_argument('--ical', help='Generate iCal output.', default=False,
+                    action='store_true')
 args = parser.parse_args()
 
 rstart_date = re.fullmatch('(\d{4})-(\d{2})-(\d{2})', args.start_date, re.A)
@@ -475,6 +507,11 @@ dtstart_date = date(int(rstart_date.group(1)),
 dtstop_date = date(int(rstop_date.group(1)),
                             int(rstop_date.group(2)),
                             int(rstop_date.group(3)))
+# generate a season tag of type YYYY-YYYY. if the start and stop years are the
+# same, then season tag will be YYYY.
+season_tag = rstart_date.group(1)
+if rstop_date.group(1) != rstart_date.group(1):
+    season_tag += '-{0}'.format(rstop_date.group(1))
 
 # dark run and dark run night counters
 dark_run_number = 0
@@ -484,6 +521,11 @@ bright_run_night_number = 0
 # darkRun and brightRun state variables
 darkRun = False
 brightRun = False
+
+if args.ical:
+    print('BEGIN:VCALENDAR\r')
+    print('VERSION:2.0\r')
+    print('PRODID:-//VERITAS/Observing Calendar 2.0//EN\r')
 
 scheduler = args.night_program
 dcounter = dtstart_date
@@ -519,7 +561,11 @@ while dcounter <= dtstop_date:
                 dark_run_night_number = 1
             else:
                 dark_run_night_number += 1
-            v.print_schedule('DR', dark_run_number, dark_run_night_number)
+            if args.ical:
+                v.print_ical_event(season_tag, 'DR', dark_run_number,
+                                   dark_run_night_number)
+            else:
+                v.print_schedule('DR', dark_run_number, dark_run_night_number)
         else:
             if darkRun == True:
                 dark_run_number += 1
@@ -534,7 +580,12 @@ while dcounter <= dtstop_date:
                 bright_run_night_number = 1
             else:
                 bright_run_night_number += 1
-            v.print_schedule('BR', bright_run_number, bright_run_night_number)
+            if args.ical:
+                v.print_ical_event(season_tag, 'BR', bright_run_number,
+                                   bright_run_night_number)
+            else:
+                v.print_schedule('BR', bright_run_number,
+                                 bright_run_night_number)
         else:
             if brightRun == True:
                 bright_run_number += 1
@@ -544,3 +595,7 @@ while dcounter <= dtstop_date:
            
     # advance the date by one day.
     dcounter = dcounter + timedelta(days=1)
+
+if args.ical:
+    print('END:VCALENDAR\r')
+
