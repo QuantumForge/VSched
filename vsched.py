@@ -506,8 +506,8 @@ parser.add_argument('--wiki', help='Generate HTML wiki table output',
                     dest='output_type', action='store_const', const='wiki')
 args = parser.parse_args()
 
-rstart_date = re.fullmatch('(\d{4})-(\d{2})-(\d{2})', args.start_date, re.A)
-rstop_date = re.fullmatch('(\d{4})-(\d{2})-(\d{2})', args.stop_date, re.A)
+rstart_date = re.fullmatch(r'(\d{4})-(\d{2})-(\d{2})', args.start_date, re.A)
+rstop_date = re.fullmatch(r'(\d{4})-(\d{2})-(\d{2})', args.stop_date, re.A)
 
 if rstart_date is None or rstop_date is None:
     print('Invalid date', file=sys.stderr)
