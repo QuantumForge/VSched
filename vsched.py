@@ -635,5 +635,6 @@ elif args.output_type == 'wiki':
     print('</BODY>')
     print('</HTML>')
 
-sys.stdout.close()
-sys.stdout = stdout_fileno
+if args.output is not None:
+    sys.stdout.close()
+    sys.stdout = stdout_fileno

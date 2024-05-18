@@ -1,6 +1,6 @@
 .ipynb_checkpoints
 .*.un~
-*.ics
+*.csv
 *.html
 *.ics
 *.c~
