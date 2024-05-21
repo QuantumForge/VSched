@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
-from datetime import date, datetime, timedelta, timezone
+import datetime
 import re
 from string import Formatter
 import subprocess
@@ -14,7 +14,7 @@ default_max_rhv_phase  = 0.666
 default_max_moon_phase = 0.300
 default_minimum_interval = 2
 
-def strfdelta(tdelta, fmt='{D:02}d {H:02}h {M:02}m {S:02}s', inputtype='timedelta'):
+def strfdelta(tdelta, fmt='{D:02}d {H:02}h {M:02}m {S:02}s', inputtype='datetime.timedelta'):
     """Convert a datetime.timedelta object or a regular number to a custom-
     formatted string, just like the stftime() method does for datetime.datetime
     objects.
@@ -38,7 +38,7 @@ def strfdelta(tdelta, fmt='{D:02}d {H:02}h {M:02}m {S:02}s', inputtype='timedelt
     """
 
     # Convert tdelta to integer seconds.
-    if inputtype == 'timedelta':
+    if inputtype == 'datetime.timedelta':
         remainder = int(tdelta.total_seconds())
     elif inputtype in ['s', 'seconds']:
         remainder = int(tdelta)
@@ -137,13 +137,13 @@ class vephem:
         tokens = string.split(',')
         if len(tokens) != 12:
             raise RuntimeException(f'Bad line, wrong number of fields: {string}')
-        self.sunset = event(datetime.fromisoformat(tokens[0]),
+        self.sunset = event(datetime.datetime.fromisoformat(tokens[0]),
                             float(tokens[1]), float(tokens[2]), 'sunset')
-        self.sunrise = event(datetime.fromisoformat(tokens[3]),
+        self.sunrise = event(datetime.datetime.fromisoformat(tokens[3]),
                             float(tokens[4]), float(tokens[5]), 'sunrise')
-        self.moonset = event(datetime.fromisoformat(tokens[6]),
+        self.moonset = event(datetime.datetime.fromisoformat(tokens[6]),
                             float(tokens[7]), float(tokens[8]), 'moonset')
-        self.moonrise = event(datetime.fromisoformat(tokens[9]),
+        self.moonrise = event(datetime.datetime.fromisoformat(tokens[9]),
                             float(tokens[10]), float(tokens[11]), 'moonrise')
 
     def find_events(self):
@@ -280,7 +280,7 @@ class vephem:
         if self.end_dark is not None and self.start_dark is not None:
             self.dark_duration = self.end_dark.dt - self.start_dark.dt
         else:
-            self.dark_duration = timedelta(seconds=0)
+            self.dark_duration = datetime.timedelta(seconds=0)
 
         return
 
@@ -367,7 +367,7 @@ class vephem:
         if self.end_moon is not None and self.start_moon is not None:
             self.moon_duration = self.end_moon.dt - self.start_moon.dt
         else:
-            self.moon_duration = timedelta(seconds=0)
+            self.moon_duration = datetime.timedelta(seconds=0)
         return
 
     def print_moon(self, print_moon_event):
@@ -388,7 +388,7 @@ class vephem:
                          run_night_number):
         """Generate output suitable for use in Google Calendar."""
         print('BEGIN:VEVENT\r')
-        print('DTSTAMP:{0}\r'.format(datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')))
+        print('DTSTAMP:{0}\r'.format(datetime.datetime.now(datetime.UTC).strftime('%Y%m%dT%H%M%SZ')))
         print('SUMMARY:{0}{1}-{2}\r'.format(night_type, run_number,
                                             run_night_number))
         print('UID:{0}-{1}{2}-{3}@veritas.sao.arizona.edu\r'.format(season,
@@ -473,7 +473,7 @@ class vephem:
 
         print('', end=',') # 'Moon'
         if self.moon_or_rhv == 'moon' or self.moon_or_rhv == 'rhv' and \
-                self.moon_duration > timedelta(seconds=0):
+                self.moon_duration > datetime.timedelta(seconds=0):
             print('{:.2f}'.format(max(self.start_moon.moon_frac,
                                       self.end_moon.moon_frac)*100), end=delim)
             print(self.moon_or_rhv, end=delim)
@@ -515,7 +515,7 @@ parser.add_argument('--wiki', help='Generate HTML wiki table output',
                     dest='output_type', action='store_const', const='wiki')
 args = parser.parse_args()
 
-minimum_interval = timedelta(hours=args.minimum_interval)
+minimum_interval = datetime.timedelta(hours=args.minimum_interval)
 max_moon_phase = args.max_moon_phase
 max_rhv_phase = args.max_rhv_phase
 
@@ -526,10 +526,10 @@ if rstart_date is None or rstop_date is None:
     print('Invalid date. Accepted format is YYYY-MM-DD.', file=sys.stderr)
     sys.exit(1)
 
-dtstart_date = date(int(rstart_date.group(1)),
+dtstart_date = datetime.date(int(rstart_date.group(1)),
                              int(rstart_date.group(2)),
                              int(rstart_date.group(3)))
-dtstop_date = date(int(rstop_date.group(1)),
+dtstop_date = datetime.date(int(rstop_date.group(1)),
                             int(rstop_date.group(2)),
                             int(rstop_date.group(3)))
 # generate a season tag of type YYYY-YYYY. if the start and stop years are the
@@ -639,7 +639,7 @@ while dcounter <= dtstop_date:
  
            
     # advance the date by one day.
-    dcounter = dcounter + timedelta(days=1)
+    dcounter = dcounter + datetime.timedelta(days=1)
 
 if args.output_type == 'ical':
     print('END:VCALENDAR\r')
