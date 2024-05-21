@@ -10,9 +10,9 @@ from zoneinfo import ZoneInfo
 
 # parameters that determine what is a dark run night, when to transition to
 # RHV, moon, or SHV modes
-max_rhv_phase  = 0.666
-max_moon_phase = 0.300
-minimum_interval = timedelta(hours=2)
+default_max_rhv_phase  = 0.666
+default_max_moon_phase = 0.300
+default_minimum_interval = 2
 
 def strfdelta(tdelta, fmt='{D:02}d {H:02}h {M:02}m {S:02}s', inputtype='timedelta'):
     """Convert a datetime.timedelta object or a regular number to a custom-
@@ -485,8 +485,8 @@ class vephem:
 
 
 parser = argparse.ArgumentParser(description='Generate VERITAS run schedule from data provided by an external ephemeris program that provides sunrise, sunset, moonrise, and moonset times.', epilog='Date format of start_date and stop_date is \'YYYY-MM-DD\' in UT time zone. If neither --dark-run or --bright-run are specified, both are printed out. If --night-program is not provided, the default is \'vnight\'.')
-parser.add_argument('start_date', help='First night in range of nights to generate ephmeris. Use UT date; times are printed in local.')
-parser.add_argument('stop_date', help='Last night in range of nights to generate ephmeris. Use UT date; times are printed in local')
+parser.add_argument('start_date', help='First night in range of nights to generate ephmeris. Format is YYYY-MM-DD. Use UT date; times are printed in local.')
+parser.add_argument('stop_date', help='Last night in range of nights to generate ephmeris. Format is YYYY-MM-DD. Use UT date; times are printed in local')
 parser.add_argument('--night-program','-n', default='vnight',
                     help='Executable that outputs night event times. Default is \'vnight\' and needs to be in your path.')
 parser.add_argument('-v', '--verbose', action='count', default=0,
@@ -497,6 +497,15 @@ parser.add_argument('--bright-run','-b', dest='run_mode_type',
 parser.add_argument('--dark-run','-d', dest='run_mode_type',
                     action='store_const', const='dark_run',
                     help='Print only dark run schedule.')
+parser.add_argument('--max-moon-phase', dest='max_moon_phase', type=float,
+                    default=default_max_moon_phase,
+                    help='Max moon phase [0:1] allowed for moonlight observing (default: %(default)s)')
+parser.add_argument('--max-rhv-phase', dest='max_rhv_phase', type=float,
+                    default=default_max_rhv_phase,
+                    help='Max moon phase [0:1] allowed for RHV observing (default: %(default)s)')
+parser.add_argument('--minimum-interval', '-m', dest='minimum_interval',
+                    type=float, default=default_minimum_interval,
+                    help='Minimum hours of dark time to be a dark run night (default: %(default)s)')
 parser.add_argument('--output', '-o', help='File to write output')
 parser.add_argument('--ical',
                     help='Generate iCal output suitable for use with Google Calendar.',
@@ -505,6 +514,10 @@ parser.add_argument('--ical',
 parser.add_argument('--wiki', help='Generate HTML wiki table output',
                     dest='output_type', action='store_const', const='wiki')
 args = parser.parse_args()
+
+minimum_interval = timedelta(hours=args.minimum_interval)
+max_moon_phase = args.max_moon_phase
+max_rhv_phase = args.max_rhv_phase
 
 rstart_date = re.fullmatch(r'(\d{4})-(\d{2})-(\d{2})', args.start_date, re.A)
 rstop_date = re.fullmatch(r'(\d{4})-(\d{2})-(\d{2})', args.stop_date, re.A)
