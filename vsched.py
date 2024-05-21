@@ -523,7 +523,7 @@ rstart_date = re.fullmatch(r'(\d{4})-(\d{2})-(\d{2})', args.start_date, re.A)
 rstop_date = re.fullmatch(r'(\d{4})-(\d{2})-(\d{2})', args.stop_date, re.A)
 
 if rstart_date is None or rstop_date is None:
-    print('Invalid date', file=sys.stderr)
+    print('Invalid date. Accepted format is YYYY-MM-DD.', file=sys.stderr)
     sys.exit(1)
 
 dtstart_date = date(int(rstart_date.group(1)),
