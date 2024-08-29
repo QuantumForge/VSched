@@ -1,12 +1,15 @@
 #include <getopt.h>
 #include <libgen.h>
+#include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "slalib.h"
 #include "libnova/julian_day.h"
+#include "libnova/ln_types.h"
 #include "libnova/lunar.h"
+#include "libnova/sidereal_time.h"
 #include "libnova/solar.h"
 #include "libnova/transform.h"
 #include "libnova/utility.h"
@@ -29,10 +32,12 @@ char *pname;
 void usage()
 {
     printf("usage: %s YEAR MONTH DAY\n", pname);
-    printf("  -c, --csv   Dump output in CSV format for spreadsheet.\n");
-    printf("  -h, --help  Print this message and exit.\n");
-    printf("  -l, --local Output times in MST timezone.\n");
-    printf("  -z, --zone  Print time zone data in output.\n");
+    printf("  -c, --csv      Dump output in CSV format for spreadsheet.\n");
+    printf("  -h, --help     Print this message and exit.\n");
+    printf("  -j, --julian   Print the julian date (not is CSV mode)\n");
+    printf("  -l, --local    Output times in MST timezone.\n");
+    printf("  -s, --sidereal Output mean local sidereal times.\n");
+    printf("  -z, --zone     Print time zone data in output.\n");
     printf("\nYear must be four digits. Date is UT date.\n\n");
     printf("Event times are UT unless -l switch is used.\n");
 
@@ -50,6 +55,7 @@ struct ephem_data
        time stored here. if the moon is not above the horizon, then
        fraction is < 0. moon_alt is the altitude of the moon on date. */
     struct ln_date date;
+    /* struct ln_equ_posn; */
     double moon_illum; /* fraction of the moon that is illuminated [0 - 1] */
     double moon_alt; /* altitude of moon */
     double jd; /* julian date */
@@ -63,13 +69,14 @@ int get_sun_rise_set(unsigned long year, unsigned long month,
 void get_moon_alt_and_illum(double jd, struct ln_lnlat_posn *observer,
         double *alt, double *illum);
 void print_ephem_data(struct ephem_data *data, int ut_time,
-        int csv, int verbose, int tz);
+        int csv, int tz, int sidereal, int julian);
 void print_csv(struct ephem_data *sun_set,
         struct ephem_data *sun_rise, struct ephem_data *moon_set,
-        struct ephem_data *moon_rise, int ut_time, int tz);
+        struct ephem_data *moon_rise, int ut_time, int tz, int sidereal);
 void print_ordered(struct ephem_data *sun_set,
         struct ephem_data *sun_rise, struct ephem_data *moon_set,
-        struct ephem_data *moon_rise, int ut_time, int tz);
+        struct ephem_data *moon_rise, int ut_time, int tz, int sidereal,
+        int julian);
 int ephem_compar(const void *a, const void *b);
 
 int main(int argc, char **argv)
@@ -81,27 +88,37 @@ int main(int argc, char **argv)
 
     int opt_csv = 0;
     int opt_help = 0;
-    int opt_ut = 1;
+    int opt_julian = 0;
+    int opt_sidereal = 0;
     int opt_tz = 0;
+    int opt_ut = 1;
     static struct option longopts[] =
     {
-        {"csv",     no_argument,     NULL,   'c'},
-        {"help",    no_argument,     NULL,   'h'},
-        {"local",   no_argument,     NULL,   'l'},
-        {"zone",    no_argument,     NULL,   'z'},
-        {NULL,      0,               NULL,   0}
+        {"csv",      no_argument,     NULL,   'c'},
+        {"help",     no_argument,     NULL,   'h'},
+        {"julian",   no_argument,     NULL,   'j'},
+        {"local",    no_argument,     NULL,   'l'},
+        {"sidereal", no_argument,     NULL,   's'},
+        {"zone",     no_argument,     NULL,   'z'},
+        {NULL,       0,               NULL,   0}
     };
 
     int c;
-    while((c = getopt_long(argc, argv, "chlz", longopts, NULL)) != -1)
+    while((c = getopt_long(argc, argv, "chjlsz", longopts, NULL)) != -1)
     {
         switch (c)
         {
             case 'c':
                opt_csv = 1;
                break; 
+            case 'j':
+               opt_julian = 1;
+               break;
             case 'l':
                opt_ut = 0;
+               break;
+            case 's':
+               opt_sidereal = 1;
                break;
             case 'z':
                opt_tz = 1;
@@ -164,10 +181,11 @@ int main(int argc, char **argv)
     /* print_ephem_data(&sun_set, opt_ut, 0, 1, opt_tz); */
 
     if (opt_csv)
-        print_csv(&sun_set, &sun_rise, &moon_set, &moon_rise, opt_ut, opt_tz);
+        print_csv(&sun_set, &sun_rise, &moon_set, &moon_rise, opt_ut, opt_tz,
+                opt_sidereal);
     else
         print_ordered(&sun_set, &sun_rise, &moon_set, &moon_rise, opt_ut,
-                opt_tz);
+                opt_tz, opt_sidereal, opt_julian);
 
     exit(EXIT_SUCCESS);
 }
@@ -315,25 +333,18 @@ void get_moon_alt_and_illum(double jd, struct ln_lnlat_posn *observer,
 }
 
 void print_ephem_data(struct ephem_data *data, int ut_time,
-        int csv, int verbose, int tz)
+        int csv, int tz, int sidereal, int julian)
 {
+    /* time zone offset is hardcoded here to Arizona (-7 MST) */
     char delimit = ' ';
     if (csv)
         delimit = ',';
 
-    struct ln_date date;
+    /* struct ln_date date; */
     if (!csv)
         printf("%9s: ", data->label);
-    if (ut_time == 1)
-    {
-        printf("%04d-%02d-%02d %02d:%02d:%07.4f", 
-                (data->date).years, (data->date).months, (data->date).days,
-                (data->date).hours, (data->date).minutes, (data->date).seconds);
-        if (tz)
-            printf("+00");
-        printf("%c", delimit);
-    }
-    else
+
+    if (ut_time != 1)
     {
         struct ln_zonedate mst;
         ln_date_to_zonedate(&(data->date), &mst, -7*3600);
@@ -342,8 +353,16 @@ void print_ephem_data(struct ephem_data *data, int ut_time,
                 mst.hours, mst.minutes, mst.seconds);
         if (tz)
             printf("-07");
-        printf("%c", delimit);
     }
+    else
+    {
+        printf("%04d-%02d-%02d %02d:%02d:%07.4f", 
+                (data->date).years, (data->date).months, (data->date).days,
+                (data->date).hours, (data->date).minutes, (data->date).seconds);
+        if (tz)
+            printf("+00");
+    }
+    printf("%c", delimit);
 
     if (csv)
     {
@@ -361,8 +380,28 @@ void print_ephem_data(struct ephem_data *data, int ut_time,
     if (!csv)
         printf(")");
 
-    if (verbose)
+    if (julian)
         printf(" jd: %f", data->jd);
+
+    if (sidereal == 1)
+    {
+        double gsidereal_time = ln_get_mean_sidereal_time(data->jd);
+        double lsidereal_time = gsidereal_time + veritas_longitude/15.;
+        if (lsidereal_time > 24.)
+            lsidereal_time -= 24.;
+        else if (lsidereal_time < 0.)
+            lsidereal_time += 24.;
+
+        double hour = floor(lsidereal_time);
+        double min  = floor((lsidereal_time - hour)*60.);
+        double sec =  (lsidereal_time - hour)*3600 - min*60.;
+        
+        printf("%c", delimit);
+        if (!csv)
+            printf("lst: ");
+        printf("%02.0f:%02.0f:%07.4f", hour, min, sec);
+    }
+
     /* don't print newline when in csv mode, calling function
        will do that */
     if (!csv)
@@ -371,26 +410,27 @@ void print_ephem_data(struct ephem_data *data, int ut_time,
 
 void print_csv(struct ephem_data *sun_set,
         struct ephem_data *sun_rise, struct ephem_data *moon_set,
-        struct ephem_data *moon_rise, int ut_time, int tz)
+        struct ephem_data *moon_rise, int ut_time, int tz, int sidereal)
 {
-    print_ephem_data(sun_set, ut_time, 1, 0, tz);
+    print_ephem_data(sun_set, ut_time, 1, tz, sidereal, 0);
     printf(",");
-    print_ephem_data(sun_rise, ut_time, 1, 0, tz);
+    print_ephem_data(sun_rise, ut_time, 1, tz, sidereal, 0);
     printf(",");
-    print_ephem_data(moon_set, ut_time, 1, 0, tz);
+    print_ephem_data(moon_set, ut_time, 1, tz, sidereal, 0);
     printf(",");
-    print_ephem_data(moon_rise, ut_time, 1, 0, tz);
+    print_ephem_data(moon_rise, ut_time, 1, tz, sidereal, 0);
     printf("\n");
 }
         
 void print_ordered(struct ephem_data *sun_set,
         struct ephem_data *sun_rise, struct ephem_data *moon_set,
-        struct ephem_data *moon_rise, int ut_time, int tz)
+        struct ephem_data *moon_rise, int ut_time, int tz, int sidereal,
+        int julian)
 {
     struct ephem_data d[4] = {*sun_set, *sun_rise, *moon_set, *moon_rise};
     qsort(d, 4, sizeof(struct ephem_data), ephem_compar);
     for (int i = 0; i < 4; i++)
-        print_ephem_data(&d[i], ut_time, 0, 1, tz);
+        print_ephem_data(&d[i], ut_time, 0, tz, sidereal, julian);
 }
 
 int ephem_compar(const void *a, const void *b)
