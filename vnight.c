@@ -20,6 +20,7 @@
    db_scheduler/include/VScheduler.h */
 const double veritas_latitude   = 31.675;
 const double veritas_longitude  = -110.952;
+/* const double veritas_height     = 1269.5; */ /* meters */
 
 /* angles of sun relative to horizon used to define VERITAS twilight. defined
    in software/offline/dqm/cgi-bin/skysurvey/db_scheduler/src/printRiseSet.cpp
