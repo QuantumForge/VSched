@@ -78,6 +78,8 @@ class event:
             ' (' + str(self.moon_frac) + ')'
 class vephem:
     def __init__(self, string):
+        # sunset, sunrise, moonset, and moonrise are instances of the event
+        # class.
         self.sunset = None
         self.sunrise = None
         self.moonset = None
@@ -100,7 +102,7 @@ class vephem:
         self.end_dark    = None
         self.dark_duration = None
 
-        # values are None, moon, or rhv
+        # values are None, "Moon", or "RHV"
         self.moon_or_rhv = None
 
         # values are DR or BR
@@ -314,9 +316,9 @@ class vephem:
                 self.start_moon = self.sunset
                 self.end_moon   = self.sunrise
                 if max(self.sunset.moon_frac, self.sunrise.moon_frac) < max_moon_phase:
-                    self.moon_or_rhv = moon
+                    self.moon_or_rhv = 'Moon'
                 elif max(self.sunset.moon_frac, self.sunrise.moon_frac) < max_rhv_phase:
-                    self.moon_or_rhv = rhv
+                    self.moon_or_rhv = 'RHV'
                 else:
                     self.moon_or_rhv = None
             # moon sets before sunset, so no moon time
@@ -331,9 +333,9 @@ class vephem:
                 self.start_moon = self.sunset
                 self.end_moon = self.sunrise
                 if max(self.sunset.moon_frac, self.sunrise.moon_frac) < max_moon_phase:
-                    self.moon_or_rhv = moon
+                    self.moon_or_rhv = 'Moon'
                 elif max(self.sunset.moon_frac, self.sunrise.moon_frac) < max_rhv_phase:
-                    self.moon_or_rhv = rhv
+                    self.moon_or_rhv = 'RHV'
                 else:
                     self.moon_or_rhv = None
             else:
@@ -345,9 +347,9 @@ class vephem:
             self.start_moon = self.moonrise
             self.end_moon = self.sunrise
             if max(self.start_moon.moon_frac, self.end_moon.moon_frac) < max_moon_phase:
-                self.moon_or_rhv = 'moon'
+                self.moon_or_rhv = 'Moon'
             elif max(self.start_moon.moon_frac, self.end_moon.moon_frac) < max_rhv_phase:
-                self.moon_or_rhv = 'rhv'
+                self.moon_or_rhv = 'RHV'
             else:
                 self.moon_or_rhv = None
         else:
@@ -358,9 +360,9 @@ class vephem:
             # it is above the horizon. make the determination of rhv/moon
             # based on its brightest.
             if max(self.start_moon.moon_frac, self.end_moon.moon_frac) < max_moon_phase:
-                self.moon_or_rhv = 'moon'
+                self.moon_or_rhv = 'Moon'
             elif max(self.start_moon.moon_frac, self.end_moon.moon_frac) < max_rhv_phase:
-                self.moon_or_rhv = 'rhv'
+                self.moon_or_rhv = 'RHV'
             else:
                 self.moon_or_rhv = None
 
@@ -439,9 +441,10 @@ class vephem:
         print('', end=delim)  # 'Day of week (MST)'
         print('', end=delim)  # 'holiday'
         print('', end=delim)  # 'Event Times'
+        # 'Twilight Ends'
         print(self.sunset.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
+        # 'Moon Event Time'
         if self.moon_event is None:
-            print('', end=delim)
             print('', end=delim)
             print('', end=delim)
         else:
@@ -450,16 +453,20 @@ class vephem:
                 print('Rise', end=delim)
             else:
                 print('Set', end=delim)
-            print('{:.2f}'.format(max(self.start_moon.moon_frac,
-                                      self.end_moon.moon_frac)*100),
-                  end=delim)
+            #print('{:.2f}'.format(max(self.start_moon.moon_frac,
+            #                          self.end_moon.moon_frac)*100),
+            #      end=delim)
         # Twilight Begins (MST)
         print(self.sunrise.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
         print('', end=delim)  # 'Run Times'
+        # 'Night Start Time'
         print(self.start_night.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
+        # 'Night Stop Time'
         print(self.end_night.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
         if self.start_dark is not None and self.end_dark is not None:
+            # 'Dark Start Time'
             print(self.start_dark.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
+            # 'Dark Stop Time'
             print(self.end_dark.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
         else:
             print('', end=delim)
@@ -468,25 +475,50 @@ class vephem:
             print('', end=delim)
             print('', end=delim)
         else:
+            # 'Moon/RHV Start Time'
             print(self.start_moon.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
+            # 'Moon/RHV Stop Time'
             print(self.end_moon.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
 
-        print('', end=',') # 'Moon'
-        if self.moon_or_rhv == 'moon' or self.moon_or_rhv == 'rhv' and \
-                self.moon_duration > datetime.timedelta(seconds=0):
+        print('', end=delim)  # 'Night'
+        print('', end=delim)  # 'Dark Time'
+        print('', end=delim)  # 'Moonlight Time'
+        print('', end=delim)  # 'RHV Time'
+        print('', end=delim)  # 'Night Time'
+        print('', end=delim)  # 'Dark Run'
+        print('', end=delim)  # 'DR Dark'
+        print('', end=delim)  # 'DR Moonlight'
+        print('', end=delim)  # 'DR RHV'
+        print('', end=delim)  # 'DR Night'
+        print('', end=delim)  # 'DR Night #'
+        print('', end=delim)  # 'Season'
+        print('', end=delim)  # 'Season Dark'
+        print('', end=delim)  # 'Season Moonlight'
+        print('', end=delim)  # 'Season RHV'
+        print('', end=delim)  # 'Season Night'
+        print('', end=delim)  # 'Season Night #'
+        print('', end=delim) # 'Moon'
+        # 'Max Illuminated (%)'
+        if self.start_moon is not None and self.end_moon is not None:
             print('{:.2f}'.format(max(self.start_moon.moon_frac,
                                       self.end_moon.moon_frac)*100), end=delim)
+        else:
+            print('0.00', end=delim)
+        # 'Obs Types'
+        if self.moon_or_rhv is not None and \
+                ((self.moon_or_rhv.lower() == 'moon' or
+                  self.moon_or_rhv.lower() == 'rhv') and
+                self.moon_duration > datetime.timedelta(seconds=0)):
             print(self.moon_or_rhv, end=delim)
         else:
-            print('', end=',') # 'Moon phase'
-
+            print('', end=',')
 
         print('')
 
 
 parser = argparse.ArgumentParser(description='Generate VERITAS run schedule from data provided by an external ephemeris program that provides sunrise, sunset, moonrise, and moonset times.', epilog='Date format of start_date and stop_date is \'YYYY-MM-DD\' in UT time zone. If neither --dark-run or --bright-run are specified, both are printed out. If --night-program is not provided, the default is \'vnight\'.')
-parser.add_argument('start_date', help='First night in range of nights to generate ephmeris. Format is YYYY-MM-DD. Use UT date; times are printed in local.')
-parser.add_argument('stop_date', help='Last night in range of nights to generate ephmeris. Format is YYYY-MM-DD. Use UT date; times are printed in local')
+parser.add_argument('start_date', help='First night in range of nights to generate ephemeris. Format is YYYY-MM-DD. Use UT date; times are printed in local.')
+parser.add_argument('stop_date', help='Last night in range of nights to generate ephemeris. Format is YYYY-MM-DD. Use UT date; times are printed in local')
 parser.add_argument('--night-program','-n', default='vnight',
                     help='Executable that outputs night event times. Default is \'vnight\' and needs to be in your path.')
 parser.add_argument('-v', '--verbose', action='count', default=0,
