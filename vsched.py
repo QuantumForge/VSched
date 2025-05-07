@@ -584,7 +584,8 @@ if args.output is not None:
     sys.stdout = open(args.output, 'w')
 
 if args.output_type == 'ical':
-    print('BEGIN:VCALENDAR\r', file=args.output)
+    #print('BEGIN:VCALENDAR\r', file=args.output)
+    print('BEGIN:VCALENDAR\r')
     print('VERSION:2.0\r')
     print('PRODID:-//VERITAS/Observing Calendar 2.0//EN\r')
 elif args.output_type == 'wiki':
