@@ -430,88 +430,98 @@ class vephem:
                        delim=','):
         """Generate CSV output suitable for importing into Google Sheets."""
         sunset_ut = self.sunset.dt.astimezone(ZoneInfo('UTC'))
-        print('', end=delim) # DR label
+        print('', end=delim) # DR label [0]
         # 'UTC Date'
-        print(sunset_ut.strftime('%Y-%m-%d'), end=delim)
+        print(sunset_ut.strftime('%Y-%m-%d'), end=delim) # [1]
         # 'Start Date (MST)'
-        print(self.sunset.dt.strftime('%Y-%m-%d'), end=delim)
+        print(self.sunset.dt.strftime('%Y-%m-%d'), end=delim) # [2]
         # 'DR #'
-        print(f'{night_type}{run_night:02d}-{run_night_number:02d}', end=delim)
-        print('', end=delim)  # 'Day/Holidays'
-        print('', end=delim)  # 'Day of week (MST)'
-        print('', end=delim)  # 'holiday'
-        print('', end=delim)  # 'Event Times'
+        print(f'{night_type}{run_night:02d}-{run_night_number:02d}',
+              end=delim) # [3]
+        print('', end=delim)  # 'Day/Holidays' [4]
+        print('', end=delim)  # 'Day of week (MST)' [5]
+        print('', end=delim)  # 'holiday' [6]
+        print('', end=delim)  # 'Event Times' [7]
         # 'Twilight Ends'
-        print(self.sunset.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
+        print(self.sunset.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim) # [8]
         # 'Moon Event Time'
         if self.moon_event is None:
-            print('', end=delim)
-            print('', end=delim)
+            print('', end=delim) # [9]
+            print('', end=delim) # [10]
         else:
-            print(self.moon_event.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
+            print(self.moon_event.dt.strftime('%Y-%m-%d %H:%M:%S'),
+                  end=delim) # [9]
             if self.moon_event.label == 'moonrise':
-                print('Rise', end=delim)
+                print('Rise', end=delim) # [10]
             else:
-                print('Set', end=delim)
+                print('Set', end=delim)  # [10]
             #print('{:.2f}'.format(max(self.start_moon.moon_frac,
             #                          self.end_moon.moon_frac)*100),
             #      end=delim)
         # Twilight Begins (MST)
-        print(self.sunrise.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
-        print('', end=delim)  # 'Run Times'
+        print(self.sunrise.dt.strftime('%Y-%m-%d %H:%M:%S'),
+              end=delim) # [11]
+        print('', end=delim)  # 'Run Times' [12]
         # 'Night Start Time'
-        print(self.start_night.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
+        print(self.start_night.dt.strftime('%Y-%m-%d %H:%M:%S'),
+              end=delim) # [13]
         # 'Night Stop Time'
-        print(self.end_night.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
+        print(self.end_night.dt.strftime('%Y-%m-%d %H:%M:%S'),
+              end=delim) # [14]
         if self.start_dark is not None and self.end_dark is not None:
             # 'Dark Start Time'
-            print(self.start_dark.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
+            print(self.start_dark.dt.strftime('%Y-%m-%d %H:%M:%S'),
+                  end=delim) # [15]
             # 'Dark Stop Time'
-            print(self.end_dark.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
+            print(self.end_dark.dt.strftime('%Y-%m-%d %H:%M:%S'),
+                  end=delim) # [16]
         else:
-            print('', end=delim)
-            print('', end=delim)
+            print('', end=delim) # [15]
+            print('', end=delim) # [16]
         if self.moon_or_rhv is None:
-            print('', end=delim)
-            print('', end=delim)
+            print('', end=delim) # [17]
+            print('', end=delim) # [18]
         else:
             # 'Moon/RHV Start Time'
-            print(self.start_moon.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
+            print(self.start_moon.dt.strftime('%Y-%m-%d %H:%M:%S'),
+                  end=delim) # [17]
             # 'Moon/RHV Stop Time'
-            print(self.end_moon.dt.strftime('%Y-%m-%d %H:%M:%S'), end=delim)
+            print(self.end_moon.dt.strftime('%Y-%m-%d %H:%M:%S'),
+                  end=delim) # [18]
 
-        print('', end=delim)  # 'Night'
-        print('', end=delim)  # 'Dark Time'
-        print('', end=delim)  # 'Moonlight Time'
-        print('', end=delim)  # 'RHV Time'
-        print('', end=delim)  # 'Night Time'
-        print('', end=delim)  # 'Dark Run'
-        print('', end=delim)  # 'DR Dark'
-        print('', end=delim)  # 'DR Moonlight'
-        print('', end=delim)  # 'DR RHV'
-        print('', end=delim)  # 'DR Night'
-        print('', end=delim)  # 'DR Night #'
-        print('', end=delim)  # 'Season'
-        print('', end=delim)  # 'Season Dark'
-        print('', end=delim)  # 'Season Moonlight'
-        print('', end=delim)  # 'Season RHV'
-        print('', end=delim)  # 'Season Night'
-        print('', end=delim)  # 'Season Night #'
-        print('', end=delim) # 'Moon'
+        print('', end=delim)  # 'Night' [19]
+        print('', end=delim)  # 'Dark Time' [20]
+        print('', end=delim)  # 'Moonlight Time' [21]
+        print('', end=delim)  # 'RHV Time' [22]
+        print('', end=delim)  # 'Night Time' [23]
+        print('', end=delim)  # 'Dark Run' [24]
+        print('', end=delim)  # 'DR Dark' [25]
+        print('', end=delim)  # 'DR Moonlight' [26]
+        print('', end=delim)  # 'DR RHV' [27]
+        print('', end=delim)  # 'DR Night' [28]
+        print('', end=delim)  # 'DR Night #' [29]
+        print('', end=delim)  # 'Season' [30]
+        print('', end=delim)  # 'Season Dark' [31]
+        print('', end=delim)  # 'Season Moonlight' [32]
+        print('', end=delim)  # 'Season RHV' [33]
+        print('', end=delim)  # 'Season Night' [34]
+        print('', end=delim)  # 'Season Night #' [35]
+        print('', end=delim) # 'Moon' [36]
         # 'Max Illuminated (%)'
         if self.start_moon is not None and self.end_moon is not None:
             print('{:.2f}'.format(max(self.start_moon.moon_frac,
-                                      self.end_moon.moon_frac)*100), end=delim)
+                                      self.end_moon.moon_frac)*100),
+                  end=delim) # [37]
         else:
-            print('0.00', end=delim)
+            print('0.00', end=delim) # [37]
         # 'Obs Types'
         if self.moon_or_rhv is not None and \
                 ((self.moon_or_rhv.lower() == 'moon' or
                   self.moon_or_rhv.lower() == 'rhv') and
                 self.moon_duration > datetime.timedelta(seconds=0)):
-            print(self.moon_or_rhv, end=delim)
+            print(self.moon_or_rhv, end=delim) # [38]
         else:
-            print('', end=',')
+            print('', end=',') # [38]
 
         print('')
 
