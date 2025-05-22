@@ -427,7 +427,7 @@ class vephem:
         print('</TR>')
 
     def print_schedule(self, night_type, run_night, run_night_number,
-                       delim=','):
+                       csvformat='dr', delim=','):
         """Generate CSV output suitable for importing into Google Sheets."""
         sunset_ut = self.sunset.dt.astimezone(ZoneInfo('UTC'))
         print('', end=delim) # DR label [0]
@@ -461,6 +461,11 @@ class vephem:
         # Twilight Begins (MST)
         print(self.sunrise.dt.strftime('%Y-%m-%d %H:%M:%S'),
               end=delim) # [11]
+        
+        if csvformat == 'br':
+            print('')
+            return
+
         print('', end=delim)  # 'Run Times' [12]
         # 'Night Start Time'
         print(self.start_night.dt.strftime('%Y-%m-%d %H:%M:%S'),
@@ -521,7 +526,7 @@ class vephem:
                 self.moon_duration > datetime.timedelta(seconds=0)):
             print(self.moon_or_rhv, end=delim) # [38]
         else:
-            print('', end=',') # [38]
+            print('', end=delim) # [38]
 
         print('')
 
@@ -533,6 +538,8 @@ parser.add_argument('--night-program','-n', default='vnight',
                     help='Executable that outputs night event times. Default is \'vnight\' and needs to be in your path.')
 parser.add_argument('-v', '--verbose', action='count', default=0,
                     help='Use mutliple times for more verbose output.')
+parser.add_argument('--csv-format', choices=['dr', 'br'], default='dr',
+                    help='CSV output format better suited for bright runs')
 parser.add_argument('--bright-run','-b', dest='run_mode_type',
                     action='store_const', const='bright_run',
                     help='Print only bright run schedule.')
@@ -651,7 +658,8 @@ while dcounter <= dtstop_date:
             elif args.output_type == 'wiki':
                 v.print_wiki_event(dark_run_number, dark_run_night_number)
             else:
-                v.print_schedule('DR', dark_run_number, dark_run_night_number)
+                v.print_schedule('DR', dark_run_number, dark_run_night_number,
+                                 csvformat=args.csv_format)
         else:
             if darkRun == True:
                 dark_run_number += 1
@@ -672,8 +680,8 @@ while dcounter <= dtstop_date:
             elif args.output_type == 'wiki':
                 v.print_wiki_event(bright_run_number, bright_run_night_number)
             else:
-                v.print_schedule('BR', bright_run_number,
-                                 bright_run_night_number)
+                v.print_schedule('BR', bright_run_number, bright_run_night_number,
+                                 csvformat=args.csv_format)
         else:
             if brightRun == True:
                 bright_run_number += 1
